@@ -1,6 +1,6 @@
 from PIL import Image
 import math
-
+import numpy as np
 # we first need a vector class to represent points on a 3-D plane
 # class will support basic functions like multiply magnitute, dot product
 class Vec3D:
@@ -31,37 +31,51 @@ class Vec3D:
 
 
 class Triangle(Vec3D):
-    def __init__(self, a=Vec3D(1, 0, 0), b=Vec3D(0, 1, 0), c=Vec3D(0, 0, 1)):
-        self.a = a
-        self.b = b
-        self.c = c
+	def __init__(self, a=Vec3D(1, 0, 0), b=Vec3D(0, 1, 0), c=Vec3D(0, 0, 1)):
+		self.a = a
+		self.b = b
+		self.c = c
 
-        ca = self.c - self.a
-        ba = self.b - self.a
-        self.normal = ca.cross_product(ba).normalize()
-        self.distance = self.normal.dot_product(self.a)
+		ca = self.c - self.a
+		ba = self.b - self.a
+		self.normal = ca.cross_product(ba).normalize()
+		self.distance = self.normal.dot_product(self.a)
 
-    def intersect(self, origin, Direction):
-        dot = Direction.dot_product(self.normal)
-        if dot == 0:
-            return -1
-        else:
-            dummy = self.normal.dot_product(origin + (self.normal * self.distance).negative())
-            dist_to_triangle = -1 * dummy / dot
-            q = Direction * dist_to_triangle + origin
-            ca = self.c - self.a
-            qa = q - self.a
-            bc = self.b - self.c
-            qc = q - self.c
-            ab = self.a - self.b
-            qb = q - self.b
-            inside = ca.cross_product(qa).dot_product(self.normal) >= 0 and \
-                     bc.cross_product(qc).dot_product(self.normal) >= 0 and \
-                     ab.cross_product(qb).dot_product(self.normal) >= 0
-            if inside:
-                return True
-            else:
-                return False
+	def new_intersect(self, origin, dir):
+		dummy = self.normal.dot_product(dir)
+		if dummy == 0:
+			return False
+		t = (self.normal.dot_product(self.a) - self.normal.dot_product(origin))/dummy
+		P = dir * t + origin
+		B = np.array([(P - self.a).x,(P - self.a).y])
+		A = np.array([[(self.b - self.a).x, (self.c - self.a).x],[(self.b - self.a).y, (self.c - self.a).y]])
+		X = np.linalg.inv(A).dot(B)
+		if X[0] >= 0 and X[0] <= 1 and  X[1] >= 0 and X[1] <= 1 and X[0] + X[1] <= 1:
+			return True
+		return False
+
+		
+	def intersect(self, origin, Direction):
+		dot = Direction.dot_product(self.normal)
+		if dot == 0:
+			return -1
+		else:
+			dummy = self.normal.dot_product(origin + (self.normal * self.distance).negative())
+			dist_to_triangle = -1 * dummy / dot
+			q = Direction * dist_to_triangle + origin
+			ca = self.c - self.a
+			qa = q - self.a
+			bc = self.b - self.c
+			qc = q - self.c
+			ab = self.a - self.b
+			qb = q - self.b
+			inside = ca.cross_product(qa).dot_product(self.normal) >= 0 and \
+					 bc.cross_product(qc).dot_product(self.normal) >= 0 and \
+					 ab.cross_product(qb).dot_product(self.normal) >= 0
+			if inside:
+				return True
+			else:
+				return False
 
 
 # function takes normal ray and incedent ray and returns the reflected ray
@@ -72,7 +86,7 @@ def reflect(I, N):
 if __name__ == "__main__":
 	width = 640
 	height = 480
-	fov = 51.52 #feeling fancy
+	fov = 51.52 
 	scale = math.tan(fov*0.5*(math.pi/180.0))
 	imageAspectRatio = float(width) / float(height)
 	origin = Vec3D(0,0,0)
@@ -89,9 +103,9 @@ if __name__ == "__main__":
 			p_g = 0
 			p_b = 0
 			for object in range(0, len(scene_objs)):
-				if(scene_objs[object].intersect(origin, dir)):
+				if(scene_objs[object].new_intersect(origin, dir)):
 					p_r = 255
-					P_g = 165
+					p_g = 165
 					p_b = 0
 			image.putpixel((i,height - j - 1), (p_r, p_g, p_b))
 	image.save("rt1.png")
